@@ -17,6 +17,14 @@ class MeshSimulator extends ChangeNotifier {
   final List<SommMessage> globalLog = [];
   final double transmissionRange = 300.0;
 
+  bool _gatewayLinkActive = false;
+  bool get gatewayLinkActive => _gatewayLinkActive;
+
+  double _burstProgress = 0.0;
+  double get burstProgress => _burstProgress;
+  bool _isBursting = false;
+  bool get isBursting => _isBursting;
+
   MeshSimulator() {
     _initializeRandomNodes(10);
   }
@@ -102,5 +110,36 @@ class MeshSimulator extends ChangeNotifier {
     }
     notifyListeners();
     print('SOMM: All tactical logs purged.');
+  }
+
+  void toggleGateway(bool active) {
+    _gatewayLinkActive = active;
+    notifyListeners();
+    print('SOMM: Gateway Link ${active ? 'CONNECTED' : 'DISCONNECTED'}');
+  }
+
+  Future<void> simulateBurstData() async {
+    if (_isBursting) return;
+    _isBursting = true;
+    _burstProgress = 0.0;
+    notifyListeners();
+
+    print('SOMM: Starting High-Speed Data Burst (Wi-Fi Direct Simulation)');
+    
+    for (int i = 0; i <= 100; i += 10) {
+      await Future.delayed(const Duration(milliseconds: 300));
+      _burstProgress = i / 100.0;
+      notifyListeners();
+    }
+
+    _isBursting = false;
+    broadcastMessage(SommMessage(
+      id: 'burst-${DateTime.now().millisecondsSinceEpoch}',
+      senderId: 'NG-S-7721',
+      recipientId: 'ALL-UNITS',
+      payload: 'DATA BURST COMPLETE: Tactical Map Update (v2.4) delivered via Wi-Fi Direct.',
+      timestamp: DateTime.now(),
+    ));
+    print('SOMM: Data Burst Finished.');
   }
 }

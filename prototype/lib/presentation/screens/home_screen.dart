@@ -28,67 +28,26 @@ class HomeScreen extends ConsumerWidget {
       ),
       body: Column(
         children: [
-          _buildStatusBanner(),
+          _buildStatusBanner(simulator),
+          if (simulator.isBursting)
+            LinearProgressIndicator(
+              value: simulator.burstProgress,
+              backgroundColor: Colors.white10,
+              color: SommTheme.primaryColor,
+              minHeight: 2,
+            ),
           Expanded(
-            child: RefreshIndicator(
-              onRefresh: () async {
-                simulator.notifyListeners();
-              },
-              child: ListView(
-                padding: const EdgeInsets.all(16),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
                 children: [
-                  _buildSystemCard(context, peers.length),
-                  const SizedBox(height: 16),
-                  Center(
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        print('SOMM: Central Test Button Pressed');
-                        _runSystemCheck(context);
-                      },
-                      icon: const Icon(Icons.verified_user),
-                      label: const Text('RUN SYSTEM CHECK'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: SommTheme.accentColor,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'ACTIVE COMMS',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 2,
-                          fontSize: 12,
-                          color: Colors.white54,
-                        ),
-                      ),
-                      Text(
-                        '${messages.length} PACKETS',
-                        style: const TextStyle(fontSize: 10, color: SommTheme.primaryColor),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  if (messages.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 40),
-                      child: Center(
-                        child: Text('NO RECENT COMMUNICATIONS',
-                            style: TextStyle(color: Colors.white24, fontSize: 12)),
-                      ),
-                    )
-                  else
-                    ...messages.map((msg) => _buildMessageItem(
-                          msg.senderId,
-                          msg.payload,
-                          '${msg.timestamp.hour}:${msg.timestamp.minute.toString().padLeft(2, '0')}',
-                          msg.ttl < 5,
-                        )),
+                  const SizedBox(height: 30),
+                  _buildTacticalHub(context, simulator, peers.length),
+                  const SizedBox(height: 40),
+                  _buildQuickActions(context, simulator),
+                  const SizedBox(height: 40),
+                  _buildRecentActivityTicker(messages),
+                  const SizedBox(height: 20),
                 ],
               ),
             ),
@@ -97,6 +56,184 @@ class HomeScreen extends ConsumerWidget {
         ],
       ),
       bottomNavigationBar: _buildBottomBar(context, simulator),
+    );
+  }
+
+  Widget _buildTacticalHub(BuildContext context, MeshSimulator simulator, int peerCount) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: SommTheme.surfaceColor,
+        borderRadius: BorderRadius.circular(32),
+        border: Border.all(color: Colors.white10, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: SommTheme.primaryColor.withOpacity(0.05),
+            blurRadius: 40,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          const Text(
+            'TACTICAL HUB',
+            style: TextStyle(
+              letterSpacing: 4,
+              fontSize: 14,
+              color: Colors.white38,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _buildHubStat('PEERS', peerCount.toString(), Icons.wifi_tethering),
+              const SizedBox(width: 40),
+              _buildHubStat('LATENCY', '42ms', Icons.timer_outlined),
+            ],
+          ),
+          const SizedBox(height: 30),
+          ElevatedButton(
+            onPressed: () => _runSystemCheck(context),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white.withOpacity(0.05),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.verified_user, size: 18, color: SommTheme.primaryColor),
+                SizedBox(width: 12),
+                Text('SYSTEM INTEGRITY: OPTIMAL', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHubStat(String label, String value, IconData icon) {
+    return Column(
+      children: [
+        Icon(icon, color: SommTheme.primaryColor, size: 28),
+        const SizedBox(height: 12),
+        Text(value, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: -1)),
+        Text(label, style: const TextStyle(fontSize: 10, color: Colors.white24, fontWeight: FontWeight.bold)),
+      ],
+    );
+  }
+
+  Widget _buildQuickActions(BuildContext context, MeshSimulator simulator) {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildActionButton(
+            'QUICK CHAT',
+            Icons.bolt,
+            SommTheme.primaryColor,
+            () {
+              simulator.broadcastMessage(SommMessage(
+                id: 'msg-${DateTime.now().millisecondsSinceEpoch}',
+                senderId: 'NG-S-7721',
+                recipientId: 'BROADCAST',
+                payload: 'STATUS REPORT: ALL CLEAR',
+                timestamp: DateTime.now(),
+              ));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Status Broadcast Sent'), behavior: SnackBarBehavior.floating),
+              );
+            },
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: _buildActionButton(
+            'DATA BURST',
+            Icons.speed,
+            SommTheme.accentColor,
+            () => simulator.simulateBurstData(),
+            isLoading: simulator.isBursting,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionButton(String label, IconData icon, Color color, VoidCallback onTap, {bool isLoading = false}) {
+    return Material(
+      color: color.withOpacity(0.1),
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        onTap: isLoading ? null : onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          decoration: BoxDecoration(
+            border: Border.all(color: color.withOpacity(0.3), width: 1),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Column(
+            children: [
+              if (isLoading)
+                const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+              else
+                Icon(icon, color: color, size: 30),
+              const SizedBox(height: 12),
+              Text(
+                label,
+                style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 1),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRecentActivityTicker(List<SommMessage> messages) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'RECENT ACTIVITY',
+          style: TextStyle(fontSize: 10, letterSpacing: 2, color: Colors.white24, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 12),
+        if (messages.isEmpty)
+          const Text('LISTENING FOR BROADCASTS...', style: TextStyle(color: Colors.white10, fontSize: 12))
+        else
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.02),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.radio, color: SommTheme.primaryColor, size: 16),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    messages.first.payload,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 13, color: Colors.white70),
+                  ),
+                ),
+                Text(
+                  '${messages.first.timestamp.hour}:${messages.first.timestamp.minute.toString().padLeft(2, '0')}',
+                  style: const TextStyle(fontSize: 10, color: Colors.white24),
+                ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 
@@ -127,23 +264,24 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildStatusBanner() {
+  Widget _buildStatusBanner(MeshSimulator simulator) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-      color: SommTheme.primaryColor.withAlpha(25), // 0.1 opacity
+      color: Colors.black,
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _statusIndicator('MESH', true),
-          _statusIndicator('BLE', true),
-          _statusIndicator('KEYS', true),
-          _statusIndicator('GPS', false),
+          _buildStatusIndicator('MESH', true),
+          _buildStatusIndicator('BLE', true),
+          _buildStatusIndicator('GATEWAY', simulator.gatewayLinkActive),
+          _buildStatusIndicator('KEYS', true),
+          _buildStatusIndicator('GPS', false),
         ],
       ),
     );
   }
 
-  Widget _statusIndicator(String label, bool active) {
+  Widget _buildStatusIndicator(String label, bool active) {
     return Row(
       children: [
         Container(
@@ -440,11 +578,28 @@ class HomeScreen extends ConsumerWidget {
           ),
           ListTile(
             leading: const Icon(Icons.emergency_share),
-            title: const Text('Trigger Tactical Scenario'),
-            subtitle: const Text('Simulate "Tactical Movement" Event'),
+            title: const Text('Simulate Tactical Movement'),
+            subtitle: const Text('Simulate Multi-Node Radio Traffic'),
             onTap: () {
               Navigator.pop(context);
               simulator.triggerScenario('tactical_movement');
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.settings_input_antenna),
+            title: const Text('Toggle Shadow Gateway'),
+            subtitle: const Text('Long-Range VHF/UHF Link'),
+            trailing: Switch(
+              value: simulator.gatewayLinkActive,
+              onChanged: (val) {
+                simulator.toggleGateway(val);
+                Navigator.pop(context);
+              },
+              activeColor: SommTheme.primaryColor,
+            ),
+            onTap: () {
+              simulator.toggleGateway(!simulator.gatewayLinkActive);
+              Navigator.pop(context);
             },
           ),
           ListTile(

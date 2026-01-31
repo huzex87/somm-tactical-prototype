@@ -65,10 +65,23 @@ SOMM employs a decentralized mesh topology where every node can act as a relay.
 The system is built on the `cryptography` Dart package, utilizing native bindings where available.
 - **Key Exchange**: X25519 (256-bit Curves).
 - **Encryption**: ChaCha20-Poly1305 (AEAD).
-- **Handshake**: Noise XX Pattern (Mutual Authentication).
+- **Handshake Pattern**: Noise XX (Mutual Authentication).
+- **Session Lifespan**: Ephemeral; re-keyed every 100 packets or 1 hour.
+- **Hardware Binding**: Simulated TEE/StrongBox integration for identity protection.
+
+## V. Advanced Tactical Enhancements (Pilot Phase)
+
+### 1. Shadow Mesh Gateway (Long-Range VHF/UHF)
+To overcome the range limitations of BLE (approx. 30-100m), the SOMM system introduces the **Shadow Mesh Gateway**. Selected nodes are bridged to long-range radio hardware (VHF/UHF), allowing mesh pockets in different valleys or urban zones to synchronize state over multiple kilometers.
+
+### 2. Hybrid Transport Fallback (High-Speed Burst)
+While BLE is used for resilient, low-power metadata and text messaging, the system automatically elevates to **Wi-Fi Direct** for "Data Bursts" (e.g., topographical map updates, high-res reconnaissance imagery). This hybrid approach maximizes battery life during standby while providing high-throughput capabilities on demand.
+
+### 3. Tactical UI Simplification
+Operator cognitive load is minimized through a "Single-Click" UI philosophy. Critical actions (Quick Chat, Data Burst) are prioritized on the primary dashboard, with diagnostic data triaged into contextual overlays.
 
 ### Provisioning Workflow
-Devices are provisioned using a specialized CLI tool (`bin/provision.dart`) which simulates an air-gapped Offline Authority. 
+Devices are provisioned using a specialized CLI tool (`bin/provision.dart`) which simulates an air-gapped Offline Authority.
 1.  **Identity Creation**: Generates non-exportable private keys in the virtual Secure Element.
 2.  **Certification**: Attaches a signed identity certificate from the Root Authority.
 3.  **Deployment**: Provisioning profiles are loaded into the prototype's secure persistence layer.
